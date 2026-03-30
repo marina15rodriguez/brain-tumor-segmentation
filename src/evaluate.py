@@ -235,16 +235,32 @@ def main() -> None:
     masks_t  = torch.from_numpy(masks)
     ious     = iou_score(preds_t, masks_t).numpy()
 
+    # Empty-mask mask: slices where the ground truth has no tumour at all
+    non_empty = masks.sum(axis=(1, 2, 3)) > 0
+
     # Report
-    print(f"\nTest results on {len(dices)} slices:")
+    print(f"\nTest results on {len(dices)} slices "
+          f"({non_empty.sum()} with tumour, {(~non_empty).sum()} empty):")
+
+    print(f"\n  -- All slices --")
     print(f"  Mean Dice : {dices.mean():.4f}")
     print(f"  Mean IoU  : {ious.mean():.4f}")
-    print(f"\n  Dice distribution:")
+    print(f"  Dice distribution:")
     print(f"    min    : {dices.min():.4f}")
     print(f"    25th % : {np.percentile(dices, 25):.4f}")
     print(f"    median : {np.median(dices):.4f}")
     print(f"    75th % : {np.percentile(dices, 75):.4f}")
     print(f"    max    : {dices.max():.4f}")
+
+    print(f"\n  -- Tumour slices only (empty masks excluded) --")
+    print(f"  Mean Dice : {dices[non_empty].mean():.4f}")
+    print(f"  Mean IoU  : {ious[non_empty].mean():.4f}")
+    print(f"  Dice distribution:")
+    print(f"    min    : {dices[non_empty].min():.4f}")
+    print(f"    25th % : {np.percentile(dices[non_empty], 25):.4f}")
+    print(f"    median : {np.median(dices[non_empty]):.4f}")
+    print(f"    75th % : {np.percentile(dices[non_empty], 75):.4f}")
+    print(f"    max    : {dices[non_empty].max():.4f}")
 
     # Visualise
     plot_predictions(
