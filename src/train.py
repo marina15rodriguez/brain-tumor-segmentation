@@ -3,12 +3,12 @@
 Loss:      BCE + Dice (combined)
 Optimiser: Adam
 Scheduler: ReduceLROnPlateau on val Dice (patience=5, factor=0.5)
-Checkpoint: saved on highest validation Dice coefficient
+Checkpoint: saved on highest validation Dice (tumour slices only)
 
 Usage:
     cd src
     python train.py
-    python train.py --epochs 50 --batch-size 8 --lr 1e-3 --output-dir ../results
+    python train.py --epochs 50 --batch-size 16 --lr 1e-3 --output-dir ../results
 """
 
 import argparse
@@ -119,10 +119,15 @@ def validate(
     criterion: nn.Module,
     device: torch.device,
 ) -> tuple[float, float]:
-    """Run validation. Returns (mean_loss, mean_dice)."""
+    """Run validation. Returns (mean_loss, mean_dice_tumour_only).
+
+    Dice is computed only on slices that have a tumour (non-empty mask).
+    Empty slices return Dice~0 even when correctly predicted all-background,
+    which inflates the metric artificially.
+    """
     model.eval()
-    total_loss = 0.0
-    total_dice = 0.0
+    total_loss  = 0.0
+    dice_scores = []
 
     with torch.no_grad():
         for images, masks in loader:
@@ -131,12 +136,19 @@ def validate(
 
             preds = model(images)
             loss  = criterion(preds, masks)
-
             total_loss += loss.item() * images.size(0)
-            total_dice += dice_coefficient(preds, masks) * images.size(0)
 
-    n = len(loader.dataset)
-    return total_loss / n, total_dice / n
+            # Per-sample Dice, then keep only non-empty masks
+            pred_bin     = (preds > 0.5).float()
+            intersection = (pred_bin * masks).sum(dim=(1, 2, 3))
+            union        = pred_bin.sum(dim=(1, 2, 3)) + masks.sum(dim=(1, 2, 3))
+            per_sample   = (2.0 * intersection + 1e-6) / (union + 1e-6)  # [B]
+            non_empty    = masks.sum(dim=(1, 2, 3)) > 0                  # [B] bool
+            if non_empty.any():
+                dice_scores.append(per_sample[non_empty].cpu())
+
+    mean_dice = torch.cat(dice_scores).mean().item() if dice_scores else 0.0
+    return total_loss / len(loader.dataset), mean_dice
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +199,7 @@ def plot_training_curves(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train U-Net on brain MRI segmentation")
     parser.add_argument("--data-dir",    type=str,   default=None)
-    parser.add_argument("--epochs",      type=int,   default=30)
+    parser.add_argument("--epochs",      type=int,   default=50)
     parser.add_argument("--batch-size",  type=int,   default=16)
     parser.add_argument("--lr",          type=float, default=1e-3)
     parser.add_argument("--weight-decay",type=float, default=1e-4)
