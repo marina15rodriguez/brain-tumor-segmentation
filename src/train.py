@@ -59,12 +59,38 @@ class DiceLoss(nn.Module):
         return 1.0 - dice.mean()
 
 
-class CombinedLoss(nn.Module):
-    """BCE + Dice loss, weighted equally."""
+class WeightedBCELoss(nn.Module):
+    """BCE loss with a positive-class weight to handle class imbalance.
 
-    def __init__(self):
+    Tumour pixels are rare (~5-10% of the image). pos_weight=10 means
+    a missed tumour pixel is penalised 10x more than a missed background pixel,
+    forcing the model to focus on the small tumour region.
+    """
+
+    def __init__(self, pos_weight: float = 10.0):
         super().__init__()
-        self.bce  = nn.BCELoss()
+        self.pos_weight = pos_weight
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Manual weighted BCE (pred is already in [0,1] after sigmoid)
+        eps  = 1e-6
+        loss = -(
+            self.pos_weight * target       * torch.log(pred + eps) +
+            (1 - target)                   * torch.log(1 - pred + eps)
+        )
+        return loss.mean()
+
+
+class CombinedLoss(nn.Module):
+    """Weighted BCE + Dice loss.
+
+    Weighted BCE handles class imbalance (rare tumour pixels).
+    Dice directly optimises the overlap metric.
+    """
+
+    def __init__(self, pos_weight: float = 10.0):
+        super().__init__()
+        self.bce  = WeightedBCELoss(pos_weight=pos_weight)
         self.dice = DiceLoss()
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

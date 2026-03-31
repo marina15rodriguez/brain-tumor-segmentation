@@ -82,8 +82,14 @@ def run_inference(
     model: torch.nn.Module,
     loader: DataLoader,
     device: torch.device,
+    tta: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Run model on all batches and collect results.
+
+    Test-Time Augmentation (TTA): when tta=True, each image is predicted
+    twice — original and horizontally flipped. The flipped prediction is
+    mirrored back and the two probability maps are averaged before thresholding.
+    This costs one extra forward pass per batch but typically adds 1-2 Dice points.
 
     Returns:
         images:      [N, 3, H, W]  — normalised input images
@@ -101,8 +107,19 @@ def run_inference(
             images = images.to(device)
             masks  = masks.to(device)
 
-            preds  = model(images)
-            dices  = dice_coefficient(preds, masks)
+            # Forward pass on original
+            preds = model(images)
+
+            if tta:
+                # Forward pass on horizontally flipped images
+                images_flipped = torch.flip(images, dims=[3])        # flip W axis
+                preds_flipped  = model(images_flipped)
+                preds_flipped  = torch.flip(preds_flipped, dims=[3]) # flip prediction back
+
+                # Average the two probability maps
+                preds = (preds + preds_flipped) / 2.0
+
+            dices = dice_coefficient(preds, masks)
 
             all_images.append(images.cpu().numpy())
             all_masks.append(masks.cpu().numpy())
@@ -208,6 +225,8 @@ def main() -> None:
     parser.add_argument("--output-dir",  type=str, default="../results")
     parser.add_argument("--n-samples",   type=int, default=6,
                         help="Number of example predictions to visualise")
+    parser.add_argument("--no-tta",      action="store_true",
+                        help="Disable test-time augmentation")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -227,8 +246,9 @@ def main() -> None:
     model = load_model_from_checkpoint(Path(args.checkpoint), device)
 
     # Inference
-    print("Running inference on test set...")
-    images, masks, predictions, dices = run_inference(model, test_loader, device)
+    use_tta = not args.no_tta
+    print(f"Running inference on test set (TTA: {'on' if use_tta else 'off'})...")
+    images, masks, predictions, dices = run_inference(model, test_loader, device, tta=use_tta)
 
     # IoU
     preds_t  = torch.from_numpy(predictions)
