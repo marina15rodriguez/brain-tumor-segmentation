@@ -92,6 +92,48 @@ python evaluate.py --checkpoint ../results/best_model.pth
 
 Results (checkpoint, training curves, prediction grid) are saved to `results/`.
 
+## Running the API locally
+
+The project includes a FastAPI web interface that lets you upload an MRI slice and visualise the segmentation result in your browser.
+
+### 1. Get the model checkpoint
+
+The trained checkpoint is stored in this repo via Git LFS. After cloning, pull it with:
+
+```bash
+git lfs pull
+```
+
+This downloads `results/best_model.pth` (~98 MB).
+
+Alternatively, train the model yourself first:
+```bash
+python src/train.py --data-dir data/kaggle_3m --epochs 50 --output-dir results/
+```
+
+### 2. Install API dependencies
+
+```bash
+pip install fastapi uvicorn python-multipart
+```
+
+### 3. Start the server
+
+```bash
+cd api
+uvicorn main:app --reload
+```
+
+### 4. Open the interface
+
+Go to **http://localhost:8000** in your browser. You will see a drag-and-drop interface where you can upload any `.tif`, `.png`, or `.jpg` MRI slice and get back:
+
+- A **badge** indicating whether a tumour was detected
+- The **tumour coverage** as a percentage of the slice
+- Three images side by side: original MRI, binary mask, and red overlay
+
+The API endpoint is also available programmatically at `POST /predict` — see **http://localhost:8000/docs** for the interactive API documentation.
+
 ## Key design decisions
 
 | Decision | Choice | Reason |
