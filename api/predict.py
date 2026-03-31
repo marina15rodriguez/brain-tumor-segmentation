@@ -166,9 +166,18 @@ def run_prediction(image_bytes: bytes) -> dict:
     tumour_fraction = float(mask.mean())
     tumour_detected = tumour_fraction > 0.001         # at least 0.1% of pixels
 
+    # Convert original to PNG (browsers cannot display TIFF natively)
+    original_resized = original.convert("RGB").resize(
+        (IMAGE_SIZE, IMAGE_SIZE), Image.BILINEAR
+    )
+    buf = io.BytesIO()
+    original_resized.save(buf, format="PNG")
+    original_png = base64.b64encode(buf.getvalue()).decode("utf-8")
+
     return {
         "tumour_detected": tumour_detected,
         "tumour_fraction": round(tumour_fraction, 4),
+        "original_png":    original_png,
         "mask_png":        _mask_to_png_base64(mask.astype(np.uint8)),
         "overlay_png":     _overlay_to_png_base64(original, mask.astype(np.uint8)),
     }
