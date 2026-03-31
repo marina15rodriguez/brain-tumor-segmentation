@@ -104,7 +104,7 @@ Results (checkpoint, training curves, prediction grid) are saved to `results/`.
 
 ## Limitations
 
-- **MRI sequence**: The model was trained exclusively on **T1-weighted contrast-enhanced (post-gadolinium)** scans from the TCGA-LGG collection. Performance on T1 pre-contrast, T2, or FLAIR sequences is not guaranteed and likely unreliable.
+- **MRI sequence**: The model was trained exclusively on axial **T1-weighted contrast-enhanced (post-gadolinium)** scans from the TCGA-LGG collection. Performance on T1 pre-contrast, T2, or FLAIR sequences is not guaranteed and likely unreliable.
 - **Tumour type**: Trained on low-grade gliomas only. Generalisation to other tumour types (high-grade glioma, meningioma, metastases) has not been validated.
 - **Single modality**: The model uses a single MRI sequence per slice. Clinical segmentation pipelines typically use multi-modal input (T1, T1ce, T2, FLAIR combined).
 
