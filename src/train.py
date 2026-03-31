@@ -24,7 +24,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from dataset import build_dataloaders
-from model import create_model, count_parameters
+from model import create_model, get_parameter_groups, count_parameters
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +201,8 @@ def main() -> None:
     parser.add_argument("--data-dir",    type=str,   default=None)
     parser.add_argument("--epochs",      type=int,   default=50)
     parser.add_argument("--batch-size",  type=int,   default=16)
-    parser.add_argument("--lr",          type=float, default=1e-3)
+    parser.add_argument("--lr",          type=float, default=5e-4)
+    parser.add_argument("--encoder-lr",  type=float, default=5e-5)
     parser.add_argument("--weight-decay",type=float, default=1e-4)
     parser.add_argument("--num-workers", type=int,   default=2)
     parser.add_argument("--output-dir",  type=str,   default="../results")
@@ -231,8 +232,16 @@ def main() -> None:
 
     # Loss, optimiser, scheduler
     criterion = CombinedLoss()
-    optimiser = torch.optim.Adam(model.parameters(),
-                                 lr=args.lr, weight_decay=args.weight_decay)
+
+    # Differential learning rates: pretrained encoder gets 10x lower LR
+    # than the freshly initialised decoder, to avoid destroying ImageNet features
+    encoder_params, decoder_params = get_parameter_groups(model)
+    optimiser = torch.optim.Adam([
+        {"params": encoder_params, "lr": args.encoder_lr},
+        {"params": decoder_params, "lr": args.lr},
+    ], weight_decay=args.weight_decay)
+    print(f"LR — encoder: {args.encoder_lr:.0e} | decoder: {args.lr:.0e}")
+
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimiser, mode="max", factor=0.5, patience=5
     )
