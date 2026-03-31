@@ -1,7 +1,6 @@
 # Brain Tumour Segmentation (U-Net)
 
-Binary segmentation of brain tumours in MRI scans using a U-Net trained from scratch.
-Developed as a Kaggle notebook project.
+Binary segmentation of brain tumours in MRI scans using a U-Net trained from scratch. With API.
 
 ## Overview
 
