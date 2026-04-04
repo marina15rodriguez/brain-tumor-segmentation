@@ -91,6 +91,27 @@ python evaluate.py --checkpoint ../results/best_model.pth
 
 Results (checkpoint, training curves, prediction grid) are saved to `results/`.
 
+## Docker (recommended)
+
+The easiest way to run the API — no Python environment, no checkpoint download needed.
+
+**Pull and run:**
+```powershell
+docker pull marina15rodriguez/brain-tumor-segmentation:v1
+docker run -p 8000:8000 marina15rodriguez/brain-tumor-segmentation:v1
+```
+
+Then open `http://localhost:8000` in your browser.
+
+The image includes the trained model checkpoint and all dependencies. It runs on CPU only (no GPU required).
+
+If port 8000 is already in use, map to a different port:
+```powershell
+docker run -p 8001:8000 marina15rodriguez/brain-tumor-segmentation:v1
+```
+
+---
+
 ## Running the API locally
 
 The project includes a FastAPI web interface that lets you upload an MRI slice and visualise the segmentation result in your browser.

@@ -18,7 +18,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 
-from predict import load_model, run_prediction
+try:
+    from predict import load_model, run_prediction          # when run from api/
+except ImportError:
+    from api.predict import load_model, run_prediction      # when run from project root (Docker)
 
 
 # ---------------------------------------------------------------------------
